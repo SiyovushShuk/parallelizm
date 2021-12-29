@@ -3,6 +3,8 @@ from urllib.parse import unquote
 from bs4 import BeautifulSoup
 from tqdm import tqdm
 import concurrent.futures
+from hashlib import md5
+from random import choice
 
 
 def get_links(file: str):
@@ -20,22 +22,6 @@ def get_links(file: str):
             if href and href.startswith('http') and 'wiki' not in href:
                 print(href, file=res)
 
-
-# def open_links(file: str):
-#     links = open(file, encoding='utf8').read().split('\n')
-#
-#     for url in links:
-#         try:
-#             request = Request(
-#                 url,
-#                 headers={'User-Agent': 'Mozilla/5.0 (Windows NT 9.0; Win65; x64; rv:97.0) Gecko/20105107 Firefox/92.0'},
-#             )
-#             resp = urlopen(request, timeout=5)
-#             code = resp.code
-#             print(code)
-#             resp.close()
-#         except Exception as e:
-#             print(url, e)
 
 def load_url(url, timeout):
     try:
@@ -55,11 +41,25 @@ def open_links(file: str):
     links = open(file, encoding='utf8').read().split('\n')
 
     with concurrent.futures.ThreadPoolExecutor(max_workers=100) as executor:
-        future_to_url = {executor.submit(load_url, url, 100) for url in links}
+        future_to_url = {executor.submit(load_url, url, 5) for url in links}
         for future in concurrent.futures.as_completed(future_to_url):
             print(future.result())
 
 
-links_file = 'res.txt'
+def generate_coin():
+    while True:
+        s = "".join([choice("0123456789") for i in range(50)])
+        h = md5(s.encode('utf8')).hexdigest()
+        if h.endswith("00000"):
+            return [s, h]
 
-open_links(links_file)
+
+def find_coins(needed: int):
+    with concurrent.futures.ProcessPoolExecutor(max_workers=100) as executor:
+        tasks = [executor.submit(generate_coin) for i in range(needed)]
+        for task in concurrent.futures.as_completed(tasks):
+            print(task.result())
+
+
+if __name__ == '__main__':
+    find_coins(5)
